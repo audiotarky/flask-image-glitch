@@ -40,11 +40,6 @@ def serve(nft=None):
         imgs.extend(new_glitches)
 
         with Image.open("audiotarky_ident@2x.png") as logo_img:
-            # width, height = imgs[0].size
-            # logo_width, logo_height = logo_img.size
-            # x1 = int(math.floor((width - logo_width) / 2))
-            # y1 = int(math.floor((height - logo_height) / 2))
-            # logo.paste(logo_img, (x1, y1, x1 + logo_width, y1 + logo_height))
             w, h = new_glitches[0].size
             logo_frames = new_glitches[0].copy()
             resized = logo_img.resize((4 * logo_img.size[0], 4 * logo_img.size[1]))
