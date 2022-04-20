@@ -1,8 +1,8 @@
 import logging
 from io import BytesIO
 from pathlib import Path
-from random import choice, randint, shuffle
-
+from random import choice, randint, shuffle, sample
+import math
 from flask import Flask, send_file
 from glitch_this import ImageGlitcher
 from PIL import Image
@@ -14,23 +14,51 @@ app = Flask(
 )
 
 
+def tile_images(filelist, n_tiles, img_size, seed):
+    output = Image.new("RGB", img_size)
+    size = int(math.sqrt(n_tiles))
+    new_w = int(img_size[0] / size)
+    new_h = int(img_size[1] / size)
+
+    o = 0
+    for c, i in enumerate(sample(filelist * n_tiles, n_tiles)):
+        tile = Image.open(i).resize((new_w, new_h))
+        r = o
+        if c - (size - 2) > (o * size):
+            o += 1
+
+        output.paste(tile, ((c % size) * new_w, r * new_h))
+    output.save(f"output_{c}.png")
+    return glitch_me(output, seed=seed)
+
+
 def make_glitch(files, seed=None):
-    files = files.split(" ")
     imgs = []
     for filepath in files:
         with Image.open(choice(["audiotarky_ident@2x.png", "skull.png"])) as logo_img:
+            imgs.extend(glitch_me(str(filepath), seed=seed))
+
             mult = randint(1, 10)
             resized = logo_img.copy().resize(
                 (mult * logo_img.size[0], mult * logo_img.size[1])
             )
-            resized.putalpha(int(0.75 * 255))
-            imgs.extend(glitch_me(str(filepath), seed=seed))
-            w, h = imgs[0].size
-            logo_frames = imgs[0].copy()
-            w = int((w - resized.size[0]) / 2)
-            h = int((h - resized.size[1]) / 2)
-            logo_frames.paste(resized, (w, h), resized)
-            imgs.extend(glitch_me(logo_frames, frames=5, seed=seed))
+
+            w = int((imgs[0].size[0] - resized.size[0]) / 2)
+            h = int((imgs[0].size[1] - resized.size[1]) / 2)
+
+            logo_frames = Image.new("RGBA", imgs[0].size)
+            logo_frames.paste(resized, (w, h), resized.convert("RGBA"))
+            logo_frames.putalpha(int(0.5 * 255))
+
+            final = Image.new("RGBA", imgs[0].size)
+            final = Image.alpha_composite(final, imgs[0])
+            final = Image.alpha_composite(final, logo_frames)
+            final.save("final.png")
+
+            imgs.extend(glitch_me(final, frames=5, seed=seed))
+
+    for n_tiles in [4, 9, 16]:
+        imgs.extend(tile_images(files, n_tiles, imgs[0].size, seed))
 
     sublist = imgs[1:]
     shuffle(sublist)
@@ -75,8 +103,7 @@ def files_to_glitch(seed):
         )
     )
     files.sort()
-    files = " ".join([f.as_posix() for f in files])
-    return make_glitch(files, seed)
+    return make_glitch([f.as_posix() for f in files], seed)
 
 
 @app.route("/<nft>")
