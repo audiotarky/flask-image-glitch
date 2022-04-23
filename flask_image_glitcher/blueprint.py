@@ -22,13 +22,19 @@ def tile_images(filelist, n_tiles, img_size, seed):
     new_h = int(img_size[1] / size)
 
     o = 0
-    for c, i in enumerate(sample(filelist * n_tiles, n_tiles)):
-        tile = Image.open(i).resize((new_w, new_h))
-        r = o
-        if c - (size - 2) > (o * size):
-            o += 1
-        output.paste(tile, ((c % size) * new_w, r * new_h))
-    return glitch_me(output, seed=seed, size=img_size)
+    try:
+        for c, i in enumerate(sample(filelist * n_tiles, n_tiles)):
+            tile = Image.open(i).resize((new_w, new_h))
+            r = o
+            if c - (size - 2) > (o * size):
+                o += 1
+            output.paste(tile, ((c % size) * new_w, r * new_h))
+        return glitch_me(output, seed=seed, size=img_size)
+    except:
+        glitch_logger.warning(
+            f"tile_images: {filelist}, {len(filelist)}, {n_tiles}, {img_size}, {seed}"
+        )
+        return []
 
 
 def image_mixin(seed, original, overlay_filename, size=None):
@@ -62,14 +68,14 @@ def make_glitch(files, seed=None, size=None):
     imgs = []
     for filepath in files:
         if size:
-            glitch_logger.info(f"setting size to {size}")
+            glitch_logger.info(f"setting size to {size} from arg")
         elif len(imgs) > 0:
             size = imgs[0].size
-            glitch_logger.info(f"setting size to {size}")
+            glitch_logger.info(f"setting size to {size} from image list")
         else:
             i = Image.open(str(filepath))
             size = i.size
-            glitch_logger.info(f"setting size to {size}")
+            glitch_logger.info(f"setting size to {size} from first image")
 
         imgs.extend(glitch_me(str(filepath), seed=seed, size=size))
 
@@ -131,8 +137,11 @@ def get_requested_size(request):
         request.args.get("height", False),
     ]
     config_size = current_app.config.get("glitch_dimensions", None)
-    # No width/height from query so return the config_size, whatever that is
-    if requested_size == (False, False):
+    glitch_logger.info(f"get_requested_size: {requested_size}")
+    if requested_size == [False, False]:
+        glitch_logger.info(
+            f"get_requested_size: No width/height from query so return the config_size: {config_size}"
+        )
         return config_size
     else:
         try:
